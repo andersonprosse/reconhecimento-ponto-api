@@ -27,5 +27,6 @@ COPY . /app/
 # Expondo a porta correta para o EasyPanel
 EXPOSE 8000
 
-# Servidor de Produção Robusto
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "gestao.wsgi:application"]
+# Servidor de Produção Robusto com Migração Automática
+CMD bash -c "python manage.py makemigrations && python manage.py migrate && gunicorn --bind 0.0.0.0:8000 gestao.wsgi:application"
+
