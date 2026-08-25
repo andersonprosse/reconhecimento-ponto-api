@@ -27,6 +27,8 @@ COPY . /app/
 # Expondo a porta correta para o EasyPanel
 EXPOSE 8000
 
+# Coleta os arquivos estáticos para o painel de admin funcionar
+RUN python manage.py collectstatic --noinput
+
 # Servidor de Produção Robusto com Migração Automática
 CMD bash -c "python manage.py makemigrations && python manage.py migrate && gunicorn --bind 0.0.0.0:8000 gestao.wsgi:application"
-
