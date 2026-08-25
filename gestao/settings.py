@@ -87,7 +87,7 @@ DATABASES = {
         'NAME': 'fabi7070_reconhecimentofacial', # Preencha com o nome do banco criado na hostgator
         'USER': 'fabi7070_admfacial',       # Preencha com o usuario
         'PASSWORD': '@Senai123',     # Preencha com a senha
-        'HOST': 'reconhecimentofacial.sti-ia.org', # O IP ou domínio da Hostgator
+        'HOST': 'sh00038.hostgator.com.br', # O IP ou domínio da Hostgator
         'PORT': '3306',
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
