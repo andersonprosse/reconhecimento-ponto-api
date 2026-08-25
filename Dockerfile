@@ -1,18 +1,18 @@
 FROM python:3.10-slim
 
-# 1. Correção dos avisos (usando o sinal de =)
+# Correção dos avisos de variáveis
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# 2. Correção do Erro 100 (Adicionando fix-missing, pkg-config e limpeza)
+# Correção do pacote do OpenCV para o Linux mais recente (libgl1)
 RUN apt-get update --fix-missing && \
     apt-get install -y --no-install-recommends \
     default-libmysqlclient-dev \
     build-essential \
     pkg-config \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -27,5 +27,5 @@ COPY . /app/
 # Expondo a porta correta para o EasyPanel
 EXPOSE 8000
 
-# 3. Servidor de Produção Robusto
+# Servidor de Produção Robusto
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "gestao.wsgi:application"]
