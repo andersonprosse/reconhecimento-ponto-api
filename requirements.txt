@@ -15,3 +15,4 @@ djangorestframework
 django-cors-headers
 mysqlclient
 gunicorn
+whitenoise
