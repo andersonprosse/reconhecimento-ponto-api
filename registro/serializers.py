@@ -5,6 +5,11 @@ class FuncionarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Funcionario
         fields = '__all__'
+        # Avisa que foto e slug não são obrigatórios no cadastro inicial
+        extra_kwargs = {
+            'foto': {'required': False},
+            'slug': {'required': False}
+        }
 
 class ColetaFacesSerializer(serializers.ModelSerializer):
     class Meta:
