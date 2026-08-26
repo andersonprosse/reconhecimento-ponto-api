@@ -1,5 +1,6 @@
 import cv2
 import os
+import shutil
 import numpy as np
 from rest_framework import viewsets, status
 from rest_framework.response import Response
@@ -249,3 +250,29 @@ def reconhecer_stream(request):
         })
 
     return Response({'faces': resultados})
+
+@api_view(['POST'])
+def limpar_dados_sistema(request):
+    """
+    Reset total (Danger Zone): Apaga todos os funcionários, rostos e treinamentos,
+    e remove os arquivos físicos do servidor (fotos, modelo).
+    """
+    try:
+        # 1. Apagar do Banco de Dados (On_delete=CASCADE apaga ColetaFaces junto)
+        Funcionario.objects.all().delete()
+        Treinamento.objects.all().delete()
+        
+        # 2. Apagar pastas físicas dentro de MEDIA_ROOT
+        pastas_para_limpar = ['foto', 'roi', 'treinamento']
+        
+        for pasta in pastas_para_limpar:
+            caminho = os.path.join(settings.MEDIA_ROOT, pasta)
+            if os.path.exists(caminho):
+                # Remove a pasta inteira e todo seu conteúdo
+                shutil.rmtree(caminho)
+                # Recria a pasta vazia
+                os.makedirs(caminho)
+                
+        return Response({'mensagem': 'Todos os dados e arquivos foram apagados com sucesso. Sistema zerado!'})
+    except Exception as e:
+        return Response({'erro': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
