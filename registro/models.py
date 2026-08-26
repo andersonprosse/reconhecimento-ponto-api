@@ -8,6 +8,11 @@ class Funcionario(models.Model):
     foto = models.ImageField(upload_to='foto/')
     nome = models.CharField(max_length=100)
     cpf = models.CharField(max_length=20)
+    
+    # Acesso
+    usuario = models.CharField(max_length=50, unique=True, null=True, blank=True)
+    senha = models.CharField(max_length=128, null=True, blank=True)
+    is_admin = models.BooleanField(default=False)
 
     def __str__(self):
         return self.nome
@@ -38,3 +43,24 @@ class Treinamento(models.Model):
         model = self.__class__
         if model.objects.exclude(id=self.id).exists():
             raise ValidationError('Só pode haver um arquivo salvo.')
+
+class RegistroPonto(models.Model):
+    TIPO_CHOICES = [
+        ('entrada', 'Entrada'),
+        ('saida', 'Saída'),
+        ('pausa_inicio', 'Início da Pausa'),
+        ('pausa_fim', 'Fim da Pausa'),
+    ]
+
+    funcionario = models.ForeignKey(Funcionario, on_delete=models.CASCADE, related_name='registros_ponto')
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='entrada')
+    data_hora = models.DateTimeField(auto_now_add=True)
+    foto_registro = models.ImageField(upload_to='ponto/', null=True, blank=True)
+    confianca = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Registro de Ponto'
+        verbose_name_plural = 'Registros de Ponto'
+
+    def __str__(self):
+        return f"{self.funcionario.nome} - {self.tipo} - {self.data_hora.strftime('%d/%m/%Y %H:%M')}"
