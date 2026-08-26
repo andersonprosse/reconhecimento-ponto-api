@@ -1,6 +1,13 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import FuncionarioViewSet, upload_face_treinamento, treinar_modelo, bater_ponto_reconhecimento, reconhecer_stream
+from .views import (
+    FuncionarioViewSet, 
+    upload_face_treinamento, 
+    treinar_modelo, 
+    bater_ponto_reconhecimento, 
+    reconhecer_stream,
+    limpar_dados_sistema
+)
 
 router = DefaultRouter()
 router.register(r'funcionarios', FuncionarioViewSet)
@@ -11,4 +18,5 @@ urlpatterns = [
     path('api/treinamento/iniciar/', treinar_modelo, name='treinar_modelo'),
     path('api/ponto/bater/', bater_ponto_reconhecimento, name='bater_ponto_reconhecimento'),
     path('api/ponto/reconhecer-stream/', reconhecer_stream, name='reconhecer_stream'),
+    path('api/configuracoes/limpar/', limpar_dados_sistema, name='limpar_dados_sistema'),
 ]
