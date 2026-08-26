@@ -6,7 +6,9 @@ from .views import (
     treinar_modelo, 
     bater_ponto_reconhecimento, 
     reconhecer_stream,
-    limpar_dados_sistema
+    limpar_dados_sistema,
+    login_usuario,
+    listar_pontos_funcionario
 )
 
 router = DefaultRouter()
@@ -19,4 +21,6 @@ urlpatterns = [
     path('api/ponto/bater/', bater_ponto_reconhecimento, name='bater_ponto_reconhecimento'),
     path('api/ponto/reconhecer-stream/', reconhecer_stream, name='reconhecer_stream'),
     path('api/configuracoes/limpar/', limpar_dados_sistema, name='limpar_dados_sistema'),
+    path('api/login/', login_usuario, name='login_usuario'),
+    path('api/pontos/<int:funcionario_id>/', listar_pontos_funcionario, name='listar_pontos_funcionario'),
 ]
