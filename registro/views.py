@@ -7,8 +7,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.conf import settings
-from django.core.files.base import ContentFile
-from .models import Funcionario, ColetaFaces, Treinamento
+from django.contrib.auth.hashers import make_password, check_password
+from .models import Funcionario, ColetaFaces, Treinamento, RegistroPonto
 from .serializers import FuncionarioSerializer
 
 class FuncionarioViewSet(viewsets.ModelViewSet):
@@ -182,7 +182,12 @@ def bater_ponto_reconhecimento(request):
     except Funcionario.DoesNotExist:
         return Response({'erro': 'Funcionário identificado não existe no banco.'}, status=status.HTTP_404_NOT_FOUND)
 
-    # TODO: Inserir logica para salvar na tabela registros_ponto (Fase 2 db)
+    # NOVIDADE: Salvar o ponto no banco de dados!
+    RegistroPonto.objects.create(
+        funcionario=funcionario,
+        tipo='entrada', # Num sistema avançado, o frontend poderia enviar se é entrada ou saída
+        confianca=confianca
+    )
     
     return Response({
         'mensagem': f'Ponto registrado para {funcionario.nome}',
@@ -276,3 +281,51 @@ def limpar_dados_sistema(request):
         return Response({'mensagem': 'Todos os dados e arquivos foram apagados com sucesso. Sistema zerado!'})
     except Exception as e:
         return Response({'erro': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+def login_usuario(request):
+    """
+    Endpoint para validar usuario e senha (sem token JWT complexo nesta fase).
+    """
+    usuario = request.data.get('usuario')
+    senha = request.data.get('senha')
+    
+    if not usuario or not senha:
+        return Response({'erro': 'Usuário e senha são obrigatórios.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    try:
+        funcionario = Funcionario.objects.get(usuario=usuario)
+        
+        # Validar senha (idealmente com hash, mas fallback para texto puro se não foi hasheado)
+        senha_valida = check_password(senha, funcionario.senha) if funcionario.senha.startswith('pbkdf2_') else (funcionario.senha == senha)
+        
+        if not senha_valida:
+            return Response({'erro': 'Senha incorreta.'}, status=status.HTTP_401_UNAUTHORIZED)
+            
+        return Response({
+            'mensagem': 'Login bem sucedido.',
+            'id': funcionario.id,
+            'nome': funcionario.nome,
+            'is_admin': funcionario.is_admin,
+            'foto': funcionario.foto.url if funcionario.foto else None
+        })
+    except Funcionario.DoesNotExist:
+        return Response({'erro': 'Usuário não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['GET'])
+def listar_pontos_funcionario(request, funcionario_id):
+    """
+    Retorna os pontos batidos do funcionário para montar o calendário.
+    """
+    pontos = RegistroPonto.objects.filter(funcionario_id=funcionario_id).order_by('-data_hora')
+    
+    resultado = []
+    for ponto in pontos:
+        resultado.append({
+            'id': ponto.id,
+            'tipo': ponto.tipo,
+            'data_hora': ponto.data_hora,
+            'confianca': ponto.confianca
+        })
+        
+    return Response({'pontos': resultado})
