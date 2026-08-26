@@ -74,6 +74,12 @@ def upload_face_treinamento(request, funcionario_id):
     image_file = ContentFile(buffer.tobytes(), name=f"{funcionario.slug}_{coleta.id}.jpg")
     coleta.image.save(image_file.name, image_file)
 
+    # NOVIDADE PROFISSIONAL: Se o funcionário ainda não tiver foto de perfil,
+    # usamos essa primeira foto redimensionada (220x220) para o perfil oficial dele!
+    if not funcionario.foto:
+        # O Django salva a foto fisicamente na pasta 'foto/' e grava o link na tabela registro_funcionario
+        funcionario.foto.save(f"perfil_{funcionario.slug}.jpg", image_file)
+
     return Response({
         'mensagem': 'Rosto detectado e salvo com sucesso.',
         'coletas_salvas': ColetaFaces.objects.filter(funcionario=funcionario).count()
