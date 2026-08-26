@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.conf import settings
+from django.core.files.base import ContentFile
 from .models import Funcionario, ColetaFaces, Treinamento
 from .serializers import FuncionarioSerializer
 
@@ -61,21 +62,23 @@ def upload_face_treinamento(request, funcionario_id):
     face_resized = cv2.resize(cropped_face, (largura, altura))
     face_gray = cv2.cvtColor(face_resized, cv2.COLOR_BGR2GRAY)
 
-    # Salva o rosto num arquivo temporario pra criar a instancia
-    tmp_path = os.path.join(settings.BASE_DIR, 'tmp', f'{funcionario.slug}_tmp.jpg')
-    cv2.imwrite(tmp_path, face_gray)
-
-    # Salva no banco de dados
+    # Codifica a imagem processada diretamente na memória RAM (sem salvar no HD)
+    ret, buffer = cv2.imencode('.jpg', face_gray)
+    if not ret:
+        return Response({'erro': 'Falha ao processar a imagem internamente.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+    # Cria a instância no banco de dados
     coleta = ColetaFaces.objects.create(funcionario=funcionario)
-    with open(tmp_path, 'rb') as f:
-        coleta.image.save(f"{funcionario.slug}_{coleta.id}.jpg", f)
     
-    os.remove(tmp_path)
+    # Converte o buffer da memória para o formato de Arquivo do Django e salva diretamente na base/cloud
+    image_file = ContentFile(buffer.tobytes(), name=f"{funcionario.slug}_{coleta.id}.jpg")
+    coleta.image.save(image_file.name, image_file)
 
     return Response({
         'mensagem': 'Rosto detectado e salvo com sucesso.',
         'coletas_salvas': ColetaFaces.objects.filter(funcionario=funcionario).count()
     })
+
 @api_view(['POST'])
 def treinar_modelo(request):
     """
