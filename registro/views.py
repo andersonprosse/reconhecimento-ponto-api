@@ -168,7 +168,7 @@ def bater_ponto_reconhecimento(request):
     
     # Aqui voce pode ajustar a confianca. LBPH, qto menor, melhor a distancia. 
     # Em geral > 60 ja comeca a errar muito
-    if confianca > 65:
+    if confianca > 85:
         return Response({'erro': 'Rosto desconhecido ou confiança baixa.', 'confianca_gerada': confianca}, status=status.HTTP_401_UNAUTHORIZED)
 
     try:
