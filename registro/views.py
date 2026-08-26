@@ -62,7 +62,7 @@ def upload_face_treinamento(request, funcionario_id):
     face_resized = cv2.resize(cropped_face, (largura, altura))
     face_gray = cv2.cvtColor(face_resized, cv2.COLOR_BGR2GRAY)
 
-    # Codifica a imagem processada diretamente na memória RAM (sem salvar no HD)
+    # Codifica a imagem processada diretamente na memória (sem usar HD/pasta tmp)
     ret, buffer = cv2.imencode('.jpg', face_gray)
     if not ret:
         return Response({'erro': 'Falha ao processar a imagem internamente.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -70,7 +70,7 @@ def upload_face_treinamento(request, funcionario_id):
     # Cria a instância no banco de dados
     coleta = ColetaFaces.objects.create(funcionario=funcionario)
     
-    # Converte o buffer da memória para o formato de Arquivo do Django e salva diretamente na base/cloud
+    # Converte o buffer da memória para o formato de Arquivo do Django e salva
     image_file = ContentFile(buffer.tobytes(), name=f"{funcionario.slug}_{coleta.id}.jpg")
     coleta.image.save(image_file.name, image_file)
 
@@ -78,7 +78,6 @@ def upload_face_treinamento(request, funcionario_id):
         'mensagem': 'Rosto detectado e salvo com sucesso.',
         'coletas_salvas': ColetaFaces.objects.filter(funcionario=funcionario).count()
     })
-
 @api_view(['POST'])
 def treinar_modelo(request):
     """
@@ -168,7 +167,7 @@ def bater_ponto_reconhecimento(request):
     
     # Aqui voce pode ajustar a confianca. LBPH, qto menor, melhor a distancia. 
     # Em geral > 60 ja comeca a errar muito
-    if confianca > 85:
+    if confianca > 65:
         return Response({'erro': 'Rosto desconhecido ou confiança baixa.', 'confianca_gerada': confianca}, status=status.HTTP_401_UNAUTHORIZED)
 
     try:
@@ -184,3 +183,63 @@ def bater_ponto_reconhecimento(request):
         'nome': funcionario.nome,
         'confianca': confianca
     })
+
+@api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser])
+def reconhecer_stream(request):
+    """
+    Endpoint otimizado para streaming em tempo real.
+    Recebe um frame e retorna as coordenadas e a predição de todos os rostos detectados.
+    """
+    file_obj = request.FILES.get('image')
+    if not file_obj:
+        return Response({'erro': 'Nenhuma imagem enviada.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    treinamento = Treinamento.objects.first()
+    if not treinamento:
+        return Response({'faces': []})
+
+    model_path = os.path.join(settings.MEDIA_ROOT, treinamento.modelo.name)
+    if not os.path.exists(model_path):
+        return Response({'faces': []})
+
+    recognizer = cv2.face.LBPHFaceRecognizer_create(radius=2, neighbors=12, grid_x=8, grid_y=8)
+    recognizer.read(model_path)
+
+    file_bytes = np.asarray(bytearray(file_obj.read()), dtype=np.uint8)
+    frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+    
+    if frame is None:
+        return Response({'faces': []})
+
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    faces_coords = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+
+    resultados = []
+    
+    for (x, y, w, h) in faces_coords:
+        cropped_face = gray[y:y+h, x:x+w]
+        face_resized = cv2.resize(cropped_face, (220, 220))
+
+        # Realiza predição
+        id_previsto, confianca = recognizer.predict(face_resized)
+        
+        nome = "Desconhecido"
+        # Mantendo o threshold original
+        if confianca <= 85:
+            try:
+                funcionario = Funcionario.objects.get(id=id_previsto)
+                nome = funcionario.nome
+            except Funcionario.DoesNotExist:
+                nome = "Desconhecido"
+                
+        resultados.append({
+            'x': int(x),
+            'y': int(y),
+            'w': int(w),
+            'h': int(h),
+            'nome': nome,
+            'confianca': float(confianca)
+        })
+
+    return Response({'faces': resultados})
