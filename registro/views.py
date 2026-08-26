@@ -9,6 +9,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.contrib.auth.hashers import make_password, check_password
+from django.utils import timezone
 from .models import Funcionario, ColetaFaces, Treinamento, RegistroPonto
 from .serializers import FuncionarioSerializer
 
@@ -184,17 +185,21 @@ def bater_ponto_reconhecimento(request):
         return Response({'erro': 'Funcionário identificado não existe no banco.'}, status=status.HTTP_404_NOT_FOUND)
 
     # NOVIDADE: Salvar o ponto no banco de dados!
-    RegistroPonto.objects.create(
+    registro = RegistroPonto.objects.create(
         funcionario=funcionario,
         tipo='entrada', # Num sistema avançado, o frontend poderia enviar se é entrada ou saída
         confianca=confianca
     )
     
+    # Formata a data e hora para o frontend (Ex: 26/08/2026 às 14:30:00)
+    data_formatada = registro.data_hora.strftime("%d/%m/%Y às %H:%M:%S")
+    
     return Response({
-        'mensagem': f'Ponto registrado para {funcionario.nome}',
+        'mensagem': f'Ponto registrado para {funcionario.nome} no dia {data_formatada}.',
         'funcionario_id': funcionario.id,
         'nome': funcionario.nome,
-        'confianca': confianca
+        'confianca': confianca,
+        'data_hora_str': data_formatada
     })
 
 @api_view(['POST'])
@@ -243,6 +248,13 @@ def reconhecer_stream(request):
             try:
                 funcionario = Funcionario.objects.get(id=id_previsto)
                 nome = funcionario.nome
+                
+                # NOVIDADE: Registrar ponto automaticamente se não bateu no último 1 minuto
+                agora = timezone.now()
+                ultima_batida = RegistroPonto.objects.filter(funcionario=funcionario).order_by('-data_hora').first()
+                if not ultima_batida or (agora - ultima_batida.data_hora).total_seconds() > 60:
+                    RegistroPonto.objects.create(funcionario=funcionario, tipo='entrada', confianca=confianca)
+                    
             except Funcionario.DoesNotExist:
                 nome = "Desconhecido"
                 
